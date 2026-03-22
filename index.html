@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ship Navigator Simulator</title>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three":          "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+      "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     LOADING SCREEN
+════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="display:none">
+  <h1>SHIP NAVIGATOR SIMULATOR</h1>
+  <h2>MARITIME BRIDGE TRAINING SYSTEM</h2>
+  <div id="loading-bar-bg"><div id="loading-bar-fill"></div></div>
+  <div id="loading-msg">Initialising…</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     START MODAL
+════════════════════════════════════════════════════ -->
+<div id="start-modal">
+  <div class="modal-title">SHIP NAVIGATOR SIMULATOR</div>
+  <div class="modal-subtitle">INTERNATIONAL MARITIME BRIDGE TRAINING — COLREGS · ECDIS · ARPA · VHF</div>
+
+  <div class="modal-columns">
+
+    <!-- Column 1: Location -->
+    <div class="modal-col">
+      <h3>▸ SELECT LOCATION</h3>
+      <div class="modal-list" id="location-list"><!-- populated by JS --></div>
+    </div>
+
+    <!-- Column 2: Ship Type -->
+    <div class="modal-col">
+      <h3>▸ SHIP TYPE</h3>
+      <div class="modal-list" id="ship-type-list"><!-- populated by JS --></div>
+
+      <h3 style="margin-top:1rem">▸ ROR SCENARIO (optional)</h3>
+      <div class="modal-list" id="scenario-list"><!-- populated by JS --></div>
+    </div>
+
+    <!-- Column 3: Controls Reference -->
+    <div class="modal-col">
+      <h3>▸ BRIDGE CONTROLS</h3>
+      <div style="font-size:0.72rem; line-height:2; color:#4a6880">
+        <div><span style="color:#e8eef5">MOUSE DRAG</span> — Look around 360°</div>
+        <div><span style="color:#e8eef5">← → / A D</span> — Port / Stbd helm</div>
+        <div><span style="color:#e8eef5">↑ / W</span> — Engine Ahead</div>
+        <div><span style="color:#e8eef5">↓ / S</span> — Engine Astern</div>
+        <div><span style="color:#e8eef5">SPACE</span> — Stop engines</div>
+        <div><span style="color:#e8eef5">H</span> — Helm midships</div>
+        <div><span style="color:#e8eef5">F</span> — Toggle Fog</div>
+        <div><span style="color:#e8eef5">R</span> — Toggle Rain</div>
+        <div><span style="color:#e8eef5">N</span> — Toggle Night</div>
+        <div><span style="color:#e8eef5">M</span> — Mute / Unmute</div>
+        <div><span style="color:#e8eef5">V</span> — Toggle VHF panel</div>
+        <div><span style="color:#e8eef5">I</span> — Toggle Instruments</div>
+        <div><span style="color:#e8eef5">B</span> — Toggle Radar</div>
+      </div>
+
+      <h3 style="margin-top:1rem">▸ FEATURES</h3>
+      <div style="font-size:0.7rem; line-height:1.8; color:#4a6880">
+        <div>✦ Realistic ocean &amp; sky (day/night cycle)</div>
+        <div>✦ 15 world locations — straits &amp; canals</div>
+        <div>✦ ARPA radar with CPA/TCPA tracking</div>
+        <div>✦ IALA buoys (port/stbd/cardinal marks)</div>
+        <div>✦ Fog, rain, wind &amp; sea state simulation</div>
+        <div>✦ All COLREGS sound signals</div>
+        <div>✦ VHF radio — CH 16, traffic &amp; DSC</div>
+        <div>✦ 10 ROR scenarios (Rules 9–19)</div>
+        <div>✦ Full instrument suite (GPS, log, sounder…)</div>
+        <div>✦ AI traffic ships with realistic routes</div>
+      </div>
+    </div>
+  </div>
+
+  <button id="start-btn">▶ ENTER BRIDGE</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     3D CANVAS
+════════════════════════════════════════════════════ -->
+<canvas id="bridge-view"></canvas>
+
+<!-- ════════════════════════════════════════════════════
+     BRIDGE COCKPIT OVERLAY  (CSS-rendered bridge interior)
+     Structure: A-pillars → window dividers → sill → console
+════════════════════════════════════════════════════ -->
+<div id="bridge-frame">
+
+  <!-- Overhead ceiling strip -->
+  <div class="bf-ceiling"></div>
+
+  <!-- Thick A-pillars at each side (structural steel) -->
+  <div class="bf-a-pillar left">
+    <div class="bf-wing-handle"></div>
+  </div>
+  <div class="bf-a-pillar right">
+    <div class="bf-wing-handle"></div>
+  </div>
+
+  <!-- Window area: transparent panes + thin vertical dividers -->
+  <div class="bf-window-area">
+    <div class="bf-wdiv" style="left:20%"></div>
+    <div class="bf-wdiv" style="left:40%"></div>
+    <div class="bf-wdiv" style="left:60%"></div>
+    <div class="bf-wdiv" style="left:80%"></div>
+    <!-- Horizontal wiper tracks on each pane -->
+    <div class="bf-wiper" style="left:10%"></div>
+    <div class="bf-wiper" style="left:30%"></div>
+    <div class="bf-wiper" style="left:50%"></div>
+    <div class="bf-wiper" style="left:70%"></div>
+    <div class="bf-wiper" style="left:90%"></div>
+  </div>
+
+  <!-- Window sill rail (lower edge of windows) -->
+  <div class="bf-sill-rail"></div>
+
+  <!-- Navigation console (opaque dashboard below sill) -->
+  <div id="bf-console">
+    <!-- Left console: radar repeater + chart screen -->
+    <div class="bf-con-section bf-con-left">
+      <div class="bf-miniscreen green-scr" title="Radar Repeater">
+        <div class="bf-scr-label">RAD</div>
+      </div>
+      <div class="bf-miniscreen blue-scr" title="ECDIS Repeater">
+        <div class="bf-scr-label">ECDIS</div>
+      </div>
+    </div>
+
+    <!-- Centre console: compass repeater + key readouts -->
+    <div class="bf-con-section bf-con-centre">
+      <div class="bf-ci-row">
+        <div class="bf-ci-item">
+          <span class="bf-ci-lbl">GYRO HDG</span>
+          <span class="bf-ci-val" id="bf-gyro">090°</span>
+        </div>
+        <div class="bf-ci-item">
+          <span class="bf-ci-lbl">SPEED</span>
+          <span class="bf-ci-val" id="bf-spd">0.0 kn</span>
+        </div>
+        <div class="bf-ci-item">
+          <span class="bf-ci-lbl">ROT</span>
+          <span class="bf-ci-val" id="bf-rot">0.0°/m</span>
+        </div>
+        <div class="bf-ci-item">
+          <span class="bf-ci-lbl">RUDDER</span>
+          <span class="bf-ci-val" id="bf-rdr">MID</span>
+        </div>
+      </div>
+      <!-- Telegraph display -->
+      <div class="bf-telegraph-strip">
+        <span class="bf-tele-lbl">TELEGRAPH</span>
+        <span class="bf-tele-val" id="bf-tele">STOP</span>
+      </div>
+    </div>
+
+    <!-- Right console: nav lights status + VHF indicator -->
+    <div class="bf-con-section bf-con-right">
+      <div class="bf-navlights-panel">
+        <div class="bf-nl-row">
+          <span class="bf-nl-dot port">●</span>
+          <span class="bf-nl-lbl">PORT</span>
+        </div>
+        <div class="bf-nl-row">
+          <span class="bf-nl-dot mast">●</span>
+          <span class="bf-nl-lbl">MAST</span>
+        </div>
+        <div class="bf-nl-row">
+          <span class="bf-nl-dot stbd">●</span>
+          <span class="bf-nl-lbl">STBD</span>
+        </div>
+        <div class="bf-nl-row">
+          <span class="bf-nl-dot stern">●</span>
+          <span class="bf-nl-lbl">STERN</span>
+        </div>
+      </div>
+      <div class="bf-miniscreen amber-scr" title="VDR / AIS">
+        <div class="bf-scr-label">AIS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compass binnacle (centre-line, between console and windows) -->
+  <div class="bf-binnacle">
+    <div class="bf-binnacle-cap"></div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TOP BAR
+════════════════════════════════════════════════════ -->
+<div id="top-bar">
+  <span id="location-name">—</span>
+  <span id="sim-time">12:00:00 UTC</span>
+  <span id="ship-type-name">—</span>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     VHF ALERT (flash)
+════════════════════════════════════════════════════ -->
+<div id="vhf-alert"></div>
+
+<!-- ════════════════════════════════════════════════════
+     LEFT PANEL — RADAR / ECDIS
+════════════════════════════════════════════════════ -->
+<div id="radar-panel">
+  <div class="panel-header">
+    ◈ NAVIGATION DISPLAYS
+    <span id="arpa-count" style="color:#4a6880;font-size:0.65rem">0 targets</span>
+  </div>
+
+  <!-- Tab Switcher -->
+  <div class="panel-tabs">
+    <button class="panel-tab active" id="tab-radar">ARPA RADAR</button>
+    <button class="panel-tab" id="tab-ecdis">ECDIS</button>
+  </div>
+
+  <!-- Radar Tab Content -->
+  <div id="radar-tab-content">
+    <canvas id="radar-canvas" width="280" height="280"></canvas>
+    <div class="radar-controls">
+      <button id="radar-range-down">RNG −</button>
+      <button id="radar-north-up">N-UP</button>
+      <button id="radar-range-up">RNG +</button>
+    </div>
+    <div style="padding:0.25rem 0.5rem; background:var(--col-panel); border-bottom:1px solid var(--col-border); font-size:0.65rem; color:var(--col-dim)">
+      ARPA TARGETS &amp; CPA/TCPA
+    </div>
+    <div id="arpa-list"></div>
+  </div>
+
+  <!-- ECDIS Tab Content -->
+  <div id="ecdis-tab-content" style="display:none">
+    <canvas id="ecdis-canvas" width="280" height="320"></canvas>
+    <div class="radar-controls">
+      <button id="ecdis-range-down">RNG −</button>
+      <button id="ecdis-north-up">N-UP</button>
+      <button id="ecdis-range-up">RNG +</button>
+    </div>
+    <div class="ecdis-legend">
+      <span class="ecdis-key tss">■</span> TSS Lane
+      <span class="ecdis-key sep">■</span> Sep Zone
+      <span class="ecdis-key lh">★</span> Lighthouse
+      <span class="ecdis-key own">▲</span> Own Ship
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     RIGHT PANEL — INSTRUMENTS
+════════════════════════════════════════════════════ -->
+<div id="instruments-panel">
+  <div class="panel-header">◈ BRIDGE INSTRUMENTS</div>
+
+  <!-- Navigation -->
+  <div class="inst-section">
+    <div class="inst-section-title">NAVIGATION</div>
+    <div class="inst-row"><span class="inst-label">GYRO HDG</span><span class="inst-value" id="inst-gyro">000°</span></div>
+    <div class="inst-row"><span class="inst-label">MAG HDG</span><span class="inst-value amber" id="inst-mag">000°</span></div>
+    <div class="inst-row"><span class="inst-label">RUDDER</span><span class="inst-value" id="inst-rudder">0°</span></div>
+    <div class="inst-row"><span class="inst-label">ROT</span><span class="inst-value" id="inst-rot">0.0°/min</span></div>
+  </div>
+
+  <!-- Speed & Position -->
+  <div class="inst-section">
+    <div class="inst-section-title">DOPPLER LOG / GPS</div>
+    <div class="inst-row"><span class="inst-label">STW</span><span class="inst-value" id="inst-stw">0.0 kn</span></div>
+    <div class="inst-row"><span class="inst-label">SOG</span><span class="inst-value" id="inst-sog">0.0 kn</span></div>
+    <div class="inst-row"><span class="inst-label">COG</span><span class="inst-value" id="inst-cog">000°</span></div>
+    <div class="inst-row"><span class="inst-label">LAT</span><span class="inst-value cyan" id="inst-lat">0°00.000'N</span></div>
+    <div class="inst-row"><span class="inst-label">LON</span><span class="inst-value cyan" id="inst-lon">0°00.000'E</span></div>
+  </div>
+
+  <!-- Echo Sounder -->
+  <div class="inst-section" id="echo-alarm">
+    <div class="inst-section-title">ECHO SOUNDER</div>
+    <div class="inst-row"><span class="inst-label">DEPTH/KEEL</span><span class="inst-value" id="inst-depth-keel">—</span></div>
+    <div class="inst-row"><span class="inst-label">DEPTH/SURF</span><span class="inst-value" id="inst-depth-surf">—</span></div>
+  </div>
+
+  <!-- Wind Canvases -->
+  <div class="inst-section">
+    <div class="inst-section-title">ANEMOMETER</div>
+    <div class="inst-canvas-row">
+      <canvas id="windrose-canvas" width="80" height="80" style="width:80px;height:80px"></canvas>
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:0.3rem">
+        <div class="inst-row"><span class="inst-label">TRUE</span><span class="inst-value" id="inst-wind-true">—</span></div>
+        <div class="inst-row"><span class="inst-label">REL</span><span class="inst-value" id="inst-wind-rel">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rudder Indicator -->
+  <div class="inst-section">
+    <div class="inst-section-title">RUDDER ANGLE INDICATOR</div>
+    <div class="inst-canvas-row">
+      <canvas id="rudder-canvas" width="90" height="55" style="width:90px;height:55px"></canvas>
+    </div>
+  </div>
+
+  <!-- Environmental -->
+  <div class="inst-section">
+    <div class="inst-section-title">ENVIRONMENT</div>
+    <div class="inst-row"><span class="inst-label">AIR TEMP</span><span class="inst-value" id="inst-air-temp">—</span></div>
+    <div class="inst-row"><span class="inst-label">SEA TEMP</span><span class="inst-value" id="inst-sea-temp">—</span></div>
+    <div class="inst-row"><span class="inst-label">BAROMETER</span><span class="inst-value" id="inst-pressure">—</span></div>
+    <div class="inst-row"><span class="inst-label">HUMIDITY</span><span class="inst-value" id="inst-humidity">—</span></div>
+    <div class="inst-row"><span class="inst-label">VISIBILITY</span><span class="inst-value" id="inst-vis">—</span></div>
+    <div class="inst-row"><span class="inst-label">WAVE HT</span><span class="inst-value" id="inst-wave">—</span></div>
+  </div>
+
+  <!-- Engine -->
+  <div class="inst-section">
+    <div class="inst-section-title">ENGINE / PROPULSION</div>
+    <div class="inst-row"><span class="inst-label">ORDER</span><span class="inst-value" id="inst-eng-order">STOP</span></div>
+    <div class="inst-row"><span class="inst-label">RESPONSE</span><span class="inst-value amber" id="inst-eng-resp">STOP</span></div>
+    <div class="inst-row"><span class="inst-label">RPM</span><span class="inst-value" id="inst-rpm">0 rpm</span></div>
+    <div class="inst-row"><span class="inst-label">FUEL</span><span class="inst-value" id="inst-fuel">0.0 t/d</span></div>
+  </div>
+
+  <!-- AIS -->
+  <div class="inst-section">
+    <div class="inst-section-title">AIS TRANSPONDER</div>
+    <div class="inst-row"><span class="inst-label">TARGETS</span><span class="inst-value" id="inst-ais">0 targets</span></div>
+  </div>
+
+  <!-- VHF Radio inside instruments panel -->
+  <div id="vhf-panel">
+    <div class="panel-header">
+      ◈ VHF RADIO — DSC CAPABLE
+      <button class="panel-toggle" onclick="document.getElementById('vhf-panel').classList.toggle('panel-collapsed')">▼</button>
+    </div>
+    <div class="panel-body">
+      <div class="vhf-status">
+        <span id="vhf-channel">CH 16</span>
+        <div class="vhf-ch-controls">
+          <button class="vhf-ch-btn" id="vhf-ch-down">−</button>
+          <button class="vhf-ch-btn" id="vhf-ch-up">+</button>
+          <button class="vhf-ch-btn vhf-ch16" id="vhf-ch16">CH16</button>
+        </div>
+      </div>
+      <div id="vhf-ch-name">CH 16 — Distress/Safety/Calling</div>
+      <div id="vhf-log"></div>
+      <div class="vhf-preset-row">
+        <button class="vhf-preset danger" id="vhf-mayday">MAYDAY</button>
+        <button class="vhf-preset" id="vhf-securite">SÉCURITÉ</button>
+        <button class="vhf-preset" id="vhf-position">POS RPT</button>
+      </div>
+      <div class="vhf-tx-row">
+        <input id="vhf-input" type="text" placeholder="Type transmission…" maxlength="200">
+        <button id="vhf-tx-btn">TX ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scenarios -->
+  <div id="scenario-panel">
+    <h4>▸ ROR SCENARIOS</h4>
+    <div id="scenario-list" class="modal-list" style="max-height:200px"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     HUD BAR (above controls)
+════════════════════════════════════════════════════ -->
+<div id="hud-bar">
+  <div class="hud-item">
+    <span class="hud-lbl">HEADING</span>
+    <span class="hud-val" id="hud-heading">000°</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
+    <span class="hud-lbl">SPEED (STW)</span>
+    <span class="hud-val" id="hud-speed">0.0 kn</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
+    <span class="hud-lbl">RUDDER</span>
+    <span class="hud-val" id="hud-rudder">0°</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
+    <span class="hud-lbl">DEPTH</span>
+    <span class="hud-val" id="hud-depth">— m</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
+    <span class="hud-lbl">WIND</span>
+    <span class="hud-val" id="hud-wind">—</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
+    <span class="hud-lbl">POSITION</span>
+    <span class="hud-val" style="font-size:0.65rem" id="hud-pos">—</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     CONTROLS PANEL
+════════════════════════════════════════════════════ -->
+<div id="controls-panel">
+
+  <!-- Helm -->
+  <div class="ctrl-group">
+    <span class="ctrl-group-title">HELM</span>
+    <div class="helm-buttons">
+      <button class="helm-btn danger" id="helm-hard-port" title="Hard-a-Port">H·P</button>
+      <button class="helm-btn" id="helm-port" title="Port (hold)">◀ PORT</button>
+      <button class="helm-btn" id="helm-midships" title="Midships">MID</button>
+      <button class="helm-btn" id="helm-stbd" title="Stbd (hold)">STBD ▶</button>
+      <button class="helm-btn danger" id="helm-hard-stbd" title="Hard-a-Stbd">H·S</button>
+    </div>
+  </div>
+
+  <!-- Engine Telegraph -->
+  <div class="ctrl-group">
+    <span class="ctrl-group-title">ENGINE TELEGRAPH</span>
+    <div class="telegraph-block">
+      <div class="telegraph-btns">
+        <button class="tele-btn" id="eng-ahead"  title="Increase engine order">▲ AHEAD</button>
+        <div id="telegraph-display" class="telegraph-stop">STOP</div>
+        <button class="tele-btn" id="eng-astern" title="Decrease engine order">▼ ASTERN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sound Signals -->
+  <div class="ctrl-group">
+    <span class="ctrl-group-title">SOUND SIGNALS</span>
+    <div class="signal-buttons">
+      <button class="sig-btn" id="btn-foghorn" title="Fog Horn (prolonged blast)">FOGHORN</button>
+      <button class="sig-btn" id="btn-1short"  title="1 short blast — turning stbd">1 SHORT</button>
+      <button class="sig-btn" id="btn-2short"  title="2 short blasts — turning port">2 SHORT</button>
+      <button class="sig-btn" id="btn-3short"  title="3 short blasts — astern prop">3 SHORT</button>
+      <button class="sig-btn" id="btn-5short"  title="≥5 short — doubt/danger">5 SHORT</button>
+      <button class="sig-btn" id="btn-bell"    title="Bell (anchor)">BELL</button>
+      <button class="sig-btn" id="btn-gong"    title="Gong (anchor, aft)">GONG</button>
+    </div>
+  </div>
+
+  <!-- Weather & Settings -->
+  <div class="ctrl-group">
+    <span class="ctrl-group-title">CONDITIONS</span>
+    <div class="setting-buttons">
+      <button class="set-btn" id="btn-fog"   title="Cycle fog density">FOG</button>
+      <button class="set-btn" id="btn-rain"  title="Cycle rain intensity">RAIN</button>
+      <button class="set-btn" id="btn-night" title="Toggle day/night">NIGHT</button>
+    </div>
+    <div class="setting-buttons" style="margin-top:0.2rem">
+      <button class="set-btn" onclick="window.simulator?.audio?.toggle()" title="Mute/Unmute">MUTE</button>
+      <button class="set-btn" onclick="document.getElementById('vhf-panel').classList.toggle('panel-collapsed')" title="Toggle VHF">VHF</button>
+      <button class="set-btn" onclick="window.simulator?._toggleBinoculars()" title="Binoculars (Z)">BINO</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCENARIO BRIEF POPUP
+════════════════════════════════════════════════════ -->
+<div id="scenario-brief"></div>
+
+<!-- ════════════════════════════════════════════════════
+     KEY HINTS
+════════════════════════════════════════════════════ -->
+<div id="key-hints">
+  DRAG = Look · ← → = Helm · ↑↓ = Engine · SPACE = Stop<br>
+  F = Fog · R = Rain · N = Night · M = Mute · V = VHF · Z = Binoculars
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     BINOCULARS OVERLAY
+════════════════════════════════════════════════════ -->
+<div id="binoculars-overlay" style="display:none">
+  <div class="bino-mask left"></div>
+  <div class="bino-circle left"></div>
+  <div class="bino-circle right"></div>
+  <div class="bino-mask right"></div>
+  <div class="bino-bridge"></div>
+  <div id="bino-info">BINOCULARS  ×7  |  Press Z to exit</div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
