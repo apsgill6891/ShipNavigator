@@ -114,6 +114,28 @@ html, body {
   /* transparent — 3D canvas shows through */
 }
 
+#bridge-photo-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 58%;
+  display: none;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.92;
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.95) 62%, rgba(0, 0, 0, 0.55) 82%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.95) 62%, rgba(0, 0, 0, 0.55) 82%, transparent 100%);
+}
+
+#bridge-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+  filter: saturate(0.92) contrast(0.95);
+}
+
 /* Thin vertical window dividers (mullions) */
 .bf-wdiv {
   position: absolute;
@@ -701,6 +723,12 @@ html, body {
   letter-spacing: 0.03em;
   line-height: 1;
   white-space: nowrap;
+}
+.hud-val-small {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
 }
 .hud-sep { width: 1px; height: 40px; background: var(--col-border); }
 
