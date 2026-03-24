@@ -9,7 +9,7 @@ import { AudioSystem }        from './audio.js';
 import { VHFSystem }          from './vhf.js';
 import { RadarSystem }        from './radar.js';
 import { InstrumentSystem }   from './instruments.js';
-import { buildTrafficShipMesh, buildShipMesh, buildForedeckMesh } from './shipModels.js';
+import { buildTrafficShipMesh } from './shipModels.js';
 import { ECDISSystem }         from './ecdis.js';
 
 const NM = 1852;
@@ -71,7 +71,7 @@ class OwnShip {
     this.rudderAngle = Math.max(-35, Math.min(35, angle));
   }
 
-  update(dt) {
+  update(dt, env = null) {
     // Speed with realistic engine lag and stopping
     if (this._engineLag > 0) this._engineLag -= dt;
     const speedDiff = this._targetSpeed - this.speed;
@@ -84,8 +84,10 @@ class OwnShip {
     this.rpm = Math.abs(this.speed / this.type.maxSpeed) * 120;
 
     // ROT: first-order lag — actual ROT approaches target ROT with time constant = steeringLag
-    const speedEffect = Math.max(0.05, Math.abs(this.speed) / this.type.maxSpeed);
-    const targetROT = (this.rudderAngle / 35) * this.type.turnRate * speedEffect * Math.sign(this.speed || 1);
+    const speedRatio = Math.min(1, Math.abs(this.speed) / Math.max(this.type.maxSpeed, 0.1));
+    const rudderAuthority = THREE.MathUtils.lerp(0.35, 1.0, speedRatio);
+    const lowSpeedBoost = THREE.MathUtils.lerp(2.4, 1.0, speedRatio);
+    const targetROT = (this.rudderAngle / 35) * this.type.turnRate * rudderAuthority * lowSpeedBoost * Math.sign(this.speed || 1);
     const lagTC = this.type.steeringLag; // time constant in seconds
     this.rot += (targetROT - this.rot) * Math.min(1, dt / lagTC);
     this.heading = (this.heading + (this.rot / 60) * dt + 360) % 360;
@@ -96,6 +98,9 @@ class OwnShip {
       0,
       -speedMS * Math.cos(this.heading * Math.PI / 180)
     );
+
+    const currentVector = ShipNavigatorSimulator.currentVectorFromEnv(env);
+    this.velocity.add(currentVector);
     this.position.addScaledVector(this.velocity, dt);
     this.position.y = this.type.bridgeHeight;
   }
@@ -119,8 +124,11 @@ class TrafficShip {
     this._originalHdg = def.hdg;
   }
 
-  update(dt) {
-    if (this.status !== 'underway') return;
+  update(dt, env = null) {
+    if (this.status !== 'underway') {
+      this.position.addScaledVector(ShipNavigatorSimulator.currentVectorFromEnv(env), dt);
+      return;
+    }
 
     // Slight wandering
     this._wanderTimer -= dt;
@@ -132,6 +140,7 @@ class TrafficShip {
     const speedMS = this.speed * NM / 3600;
     this.position.x += speedMS * Math.sin(this.heading * Math.PI / 180) * dt;
     this.position.z -= speedMS * Math.cos(this.heading * Math.PI / 180) * dt;
+    this.position.addScaledVector(ShipNavigatorSimulator.currentVectorFromEnv(env), dt);
   }
 }
 
@@ -243,6 +252,17 @@ class WeatherSystem {
 // MAIN SIMULATOR
 // ══════════════════════════════════════════════════════════════════════════════
 class ShipNavigatorSimulator {
+  static currentVectorFromEnv(env) {
+    if (!env?.current?.speed) return new THREE.Vector3();
+    const dirRad = (env.current.direction || 0) * Math.PI / 180;
+    const speedMS = env.current.speed * NM / 3600;
+    return new THREE.Vector3(
+      speedMS * Math.sin(dirRad),
+      0,
+      -speedMS * Math.cos(dirRad)
+    );
+  }
+
   constructor() {
     this.renderer   = null;
     this.scene      = null;
@@ -359,7 +379,6 @@ class ShipNavigatorSimulator {
     this._setProgress(70, 'Building bridge interior…');
     await this._tick();
     this._createBridgeInterior(shipType);
-    this._createForedeck(shipType);
 
     this._setProgress(80, 'Initialising systems…');
     await this._tick();
@@ -819,13 +838,6 @@ class ShipNavigatorSimulator {
     this.scene.add(g);
   }
 
-  _createForedeck(shipType) {
-    // Use deck-only mesh so the solid superstructure block doesn't wall off the forward view
-    const group = buildForedeckMesh(shipType.id);
-    this._deckMesh = group;
-    this.scene.add(group);
-  }
-
   // ── Controls ────────────────────────────────────────────────────────────────
   _setupControls() {
     const canvas = document.getElementById('bridge-view');
@@ -1160,7 +1172,7 @@ class ShipNavigatorSimulator {
     if (this._keyState['ArrowRight'] || this._keyState['d']) this.ownShip.applyHelm( 0.3);
 
     // Update own ship
-    this.ownShip.update(dt);
+    this.ownShip.update(dt, this.weather);
 
     // Camera yaw tracks ship heading (bridge rotates with ship)
     const hdgDelta = this.ownShip.heading - this._lastHeading;
@@ -1171,7 +1183,7 @@ class ShipNavigatorSimulator {
 
     // Update traffic
     for (const ts of this.trafficShips) {
-      ts.update(dt);
+      ts.update(dt, this.weather);
       if (ts.mesh) {
         ts.mesh.position.x = ts.position.x;
         ts.mesh.position.y = 0; // ship model handles own y offset (waterline at 0)
@@ -1191,17 +1203,6 @@ class ShipNavigatorSimulator {
       -Math.cos(yawRad) * Math.cos(pitchRad)
     );
     this.camera.lookAt(this.camera.position.clone().add(lookDir));
-
-    // Update foredeck position
-    if (this._deckMesh) {
-      const hdgRad = this.ownShip.heading * Math.PI / 180;
-      const bzo = (this.ownShip.type.bridgeZOffset || 0) * this.ownShip.type.loa;
-      // Offset mesh so bridge aligns with camera: mesh_center = camera - rotation*(0,0,bzo)
-      this._deckMesh.position.x = this.ownShip.position.x + bzo * Math.sin(hdgRad);
-      this._deckMesh.position.y = 0;
-      this._deckMesh.position.z = this.ownShip.position.z - bzo * Math.cos(hdgRad);
-      this._deckMesh.rotation.y = -hdgRad;
-    }
 
     // Bridge interior follows ship heading (not pitch/yaw); y = bridge eye height
     if (this._bridgeGroup) {
@@ -1269,7 +1270,46 @@ class ShipNavigatorSimulator {
     set('hud-rudder',   Math.abs(ra) < 1 ? 'MID' : ra > 0 ? ra.toFixed(0) + '°S' : Math.abs(ra).toFixed(0) + '°P');
     set('hud-depth',    d.depthKeel.toFixed(1) + ' m');
     set('hud-wind',     d.windSpeedTrue.toFixed(0) + 'kn/' + String(Math.round(d.windDirTrue)).padStart(3,'0') + '°');
+    set('hud-target',   this._getRelativeTargetText());
     set('hud-pos',      this.instruments.formatLat(d.lat) + '\n' + this.instruments.formatLon(d.lon));
+  }
+
+  _getRelativeTargetText() {
+    if (!this.trafficShips.length) return 'NO TARGET IN RANGE';
+
+    let nearest = null;
+    let minRangeNM = Infinity;
+
+    for (const ship of this.trafficShips) {
+      const dx = ship.position.x - this.ownShip.position.x;
+      const dz = ship.position.z - this.ownShip.position.z;
+      const rangeNM = Math.hypot(dx, dz) / NM;
+      if (rangeNM < minRangeNM) {
+        minRangeNM = rangeNM;
+        nearest = ship;
+      }
+    }
+
+    if (!nearest || !Number.isFinite(minRangeNM) || minRangeNM > 24) return 'NO TARGET IN RANGE';
+
+    const dx = nearest.position.x - this.ownShip.position.x;
+    const dz = nearest.position.z - this.ownShip.position.z;
+    const trueBearing = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
+    const relBearing = ((trueBearing - this.ownShip.heading + 540) % 360) - 180;
+
+    const ownVx = this.ownShip.velocity.x;
+    const ownVz = this.ownShip.velocity.z;
+    const tgtVx = nearest.speed * NM / 3600 * Math.sin(nearest.heading * Math.PI / 180);
+    const tgtVz = -nearest.speed * NM / 3600 * Math.cos(nearest.heading * Math.PI / 180);
+    const current = ShipNavigatorSimulator.currentVectorFromEnv(this.weather);
+    const rvx = (tgtVx + current.x) - ownVx;
+    const rvz = (tgtVz + current.z) - ownVz;
+    const rangeM = Math.max(1, Math.hypot(dx, dz));
+    const closingKn = -((dx * rvx) + (dz * rvz)) / rangeM * 3600 / NM;
+    const side = relBearing > 0 ? 'STBD' : relBearing < 0 ? 'PORT' : 'AHEAD';
+    const signedBearing = side === 'AHEAD' ? '000°' : `${String(Math.round(Math.abs(relBearing))).padStart(3, '0')}° ${side}`;
+
+    return `${nearest.name} · ${minRangeNM.toFixed(2)} nm · ${signedBearing} · ${closingKn >= 0 ? 'closing' : 'opening'} ${Math.abs(closingKn).toFixed(1)} kn`;
   }
 
   _updateBridgeConsole() {
