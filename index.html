@@ -99,7 +99,6 @@
      Structure: A-pillars → window dividers → sill → console
 ════════════════════════════════════════════════════ -->
 <div id="bridge-frame">
-
   <!-- Overhead ceiling strip -->
   <div class="bf-ceiling"></div>
 
@@ -113,16 +112,12 @@
 
   <!-- Window area: transparent panes + thin vertical dividers -->
   <div class="bf-window-area">
-    <div class="bf-wdiv" style="left:20%"></div>
-    <div class="bf-wdiv" style="left:40%"></div>
-    <div class="bf-wdiv" style="left:60%"></div>
-    <div class="bf-wdiv" style="left:80%"></div>
-    <!-- Horizontal wiper tracks on each pane -->
-    <div class="bf-wiper" style="left:10%"></div>
-    <div class="bf-wiper" style="left:30%"></div>
-    <div class="bf-wiper" style="left:50%"></div>
-    <div class="bf-wiper" style="left:70%"></div>
-    <div class="bf-wiper" style="left:90%"></div>
+    <div id="bridge-procedural-overlay">
+      <div class="proc-deck-grid"></div>
+      <div class="proc-container-block port"></div>
+      <div class="proc-container-block stbd"></div>
+      <div class="proc-foremast"></div>
+    </div>
   </div>
 
   <!-- Window sill rail (lower edge of windows) -->
@@ -404,6 +399,11 @@
   </div>
   <div class="hud-sep"></div>
   <div class="hud-item">
+    <span class="hud-lbl">RELATIVE TARGET</span>
+    <span class="hud-val hud-val-small" id="hud-target">NO TARGET IN RANGE</span>
+  </div>
+  <div class="hud-sep"></div>
+  <div class="hud-item">
     <span class="hud-lbl">POSITION</span>
     <span class="hud-val" style="font-size:0.65rem" id="hud-pos">—</span>
   </div>
@@ -464,6 +464,7 @@
       <button class="set-btn" onclick="window.simulator?.audio?.toggle()" title="Mute/Unmute">MUTE</button>
       <button class="set-btn" onclick="document.getElementById('vhf-panel').classList.toggle('panel-collapsed')" title="Toggle VHF">VHF</button>
       <button class="set-btn" onclick="window.simulator?._toggleBinoculars()" title="Binoculars (Z)">BINO</button>
+      <button class="set-btn" id="btn-proc-view" title="Toggle coded bridge-front overlay">FRONT</button>
     </div>
   </div>
 
