@@ -1066,12 +1066,6 @@ class ShipNavigatorSimulator {
     if (btn) btn.textContent = this._isNight ? 'DAY' : 'NIGHT';
   }
 
-  _toggleProceduralBridgeOverlay() {
-    const overlay = document.getElementById('bridge-procedural-overlay');
-    if (!overlay) return;
-    overlay.classList.toggle('off');
-  }
-
   _updateWake(dt) {
     if (!this._wakeLine || !this.ownShip) return;
 
