@@ -386,7 +386,6 @@ class ShipNavigatorSimulator {
     this._setProgress(70, 'Building bridge interior…');
     await this._tick();
     this._createBridgeInterior(shipType);
-    this._createForedeck(shipType);
 
     this._setProgress(80, 'Initialising systems…');
     await this._tick();
