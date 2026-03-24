@@ -99,12 +99,6 @@
      Structure: A-pillars → window dividers → sill → console
 ════════════════════════════════════════════════════ -->
 <div id="bridge-frame">
-  <div id="view-reference">
-    <div class="vr-horizon"></div>
-    <div class="vr-centerline"></div>
-    <div class="vr-conning-mark"></div>
-  </div>
-
   <!-- Overhead ceiling strip -->
   <div class="bf-ceiling"></div>
 
@@ -118,16 +112,9 @@
 
   <!-- Window area: transparent panes + thin vertical dividers -->
   <div class="bf-window-area">
-    <div class="bf-wdiv" style="left:20%"></div>
-    <div class="bf-wdiv" style="left:40%"></div>
-    <div class="bf-wdiv" style="left:60%"></div>
-    <div class="bf-wdiv" style="left:80%"></div>
-    <!-- Horizontal wiper tracks on each pane -->
-    <div class="bf-wiper" style="left:10%"></div>
-    <div class="bf-wiper" style="left:30%"></div>
-    <div class="bf-wiper" style="left:50%"></div>
-    <div class="bf-wiper" style="left:70%"></div>
-    <div class="bf-wiper" style="left:90%"></div>
+    <div id="bridge-photo-overlay">
+      <img id="bridge-photo-img" alt="Custom own-ship foredeck reference">
+    </div>
   </div>
 
   <!-- Window sill rail (lower edge of windows) -->
@@ -474,6 +461,8 @@
       <button class="set-btn" onclick="window.simulator?.audio?.toggle()" title="Mute/Unmute">MUTE</button>
       <button class="set-btn" onclick="document.getElementById('vhf-panel').classList.toggle('panel-collapsed')" title="Toggle VHF">VHF</button>
       <button class="set-btn" onclick="window.simulator?._toggleBinoculars()" title="Binoculars (Z)">BINO</button>
+      <button class="set-btn" id="btn-photo" title="Load your own bridge-front photo">PHOTO</button>
+      <input id="photo-input" type="file" accept="image/*" style="display:none">
     </div>
   </div>
 

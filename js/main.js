@@ -9,7 +9,7 @@ import { AudioSystem }        from './audio.js';
 import { VHFSystem }          from './vhf.js';
 import { RadarSystem }        from './radar.js';
 import { InstrumentSystem }   from './instruments.js';
-import { buildTrafficShipMesh } from './shipModels.js';
+import { buildTrafficShipMesh, buildForedeckMesh } from './shipModels.js';
 import { ECDISSystem }         from './ecdis.js';
 
 const NM = 1852;
@@ -85,11 +85,14 @@ class OwnShip {
 
     // ROT: first-order lag — actual ROT approaches target ROT with time constant = steeringLag
     const speedRatio = Math.min(1, Math.abs(this.speed) / Math.max(this.type.maxSpeed, 0.1));
-    const rudderAuthority = THREE.MathUtils.lerp(0.35, 1.0, speedRatio);
-    const lowSpeedBoost = THREE.MathUtils.lerp(2.4, 1.0, speedRatio);
-    const targetROT = (this.rudderAngle / 35) * this.type.turnRate * rudderAuthority * lowSpeedBoost * Math.sign(this.speed || 1);
-    const lagTC = this.type.steeringLag; // time constant in seconds
-    this.rot += (targetROT - this.rot) * Math.min(1, dt / lagTC);
+    // Higher low-speed rudder authority so helm orders are clearly visible in training mode.
+    const rudderAuthority = THREE.MathUtils.lerp(0.75, 1.3, speedRatio);
+    const lowSpeedBoost = THREE.MathUtils.lerp(2.8, 1.0, speedRatio);
+    const sensitivityBoost = 1.8;
+    const targetROT = (this.rudderAngle / 35) * this.type.turnRate * rudderAuthority * lowSpeedBoost * sensitivityBoost * Math.sign(this.speed || 1);
+    const clampedTargetROT = THREE.MathUtils.clamp(targetROT, -35, 35);
+    const lagTC = Math.max(1.2, this.type.steeringLag * 0.45); // more responsive helm
+    this.rot += (clampedTargetROT - this.rot) * Math.min(1, dt / lagTC);
     this.heading = (this.heading + (this.rot / 60) * dt + 360) % 360;
 
     const speedMS = this.speed * NM / 3600;
@@ -307,6 +310,7 @@ class ShipNavigatorSimulator {
     this._binoculars = false;
     this._mouseSensitivity = 0.2;
     this._bridgeGroup = null;
+    this._bridgePhotoUrl = null;
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -838,6 +842,12 @@ class ShipNavigatorSimulator {
     this.scene.add(g);
   }
 
+  _createForedeck(shipType) {
+    const group = buildForedeckMesh(shipType.id);
+    this._deckMesh = group;
+    this.scene.add(group);
+  }
+
   // ── Controls ────────────────────────────────────────────────────────────────
   _setupControls() {
     const canvas = document.getElementById('bridge-view');
@@ -949,6 +959,10 @@ class ShipNavigatorSimulator {
     document.getElementById('btn-fog')?.addEventListener('click',  () => this._toggleFog());
     document.getElementById('btn-rain')?.addEventListener('click', () => this._toggleRain());
     document.getElementById('btn-night')?.addEventListener('click',() => this._toggleNight());
+    document.getElementById('btn-photo')?.addEventListener('click', () => {
+      document.getElementById('photo-input')?.click();
+    });
+    document.getElementById('photo-input')?.addEventListener('change', (e) => this._loadBridgePhoto(e));
 
     // Sound signals
     document.getElementById('btn-foghorn')?.addEventListener('click', () => this.audio.playFogHorn(1));
@@ -1035,6 +1049,22 @@ class ShipNavigatorSimulator {
     this._updateSun();
     const btn = document.getElementById('btn-night');
     if (btn) btn.textContent = this._isNight ? 'DAY' : 'NIGHT';
+  }
+
+  _loadBridgePhoto(event) {
+    const input = event?.target;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    const overlay = document.getElementById('bridge-photo-overlay');
+    const img = document.getElementById('bridge-photo-img');
+    if (!overlay || !img) return;
+
+    if (this._bridgePhotoUrl) URL.revokeObjectURL(this._bridgePhotoUrl);
+    this._bridgePhotoUrl = URL.createObjectURL(file);
+    img.src = this._bridgePhotoUrl;
+    overlay.style.display = 'block';
+    input.value = '';
   }
 
   // ── Panel Toggle ─────────────────────────────────────────────────────────────
@@ -1203,6 +1233,16 @@ class ShipNavigatorSimulator {
       -Math.cos(yawRad) * Math.cos(pitchRad)
     );
     this.camera.lookAt(this.camera.position.clone().add(lookDir));
+
+    // Foredeck / own-ship front view follows vessel motion and heading
+    if (this._deckMesh) {
+      const hdgRad = this.ownShip.heading * Math.PI / 180;
+      const bzo = (this.ownShip.type.bridgeZOffset || 0) * this.ownShip.type.loa;
+      this._deckMesh.position.x = this.ownShip.position.x + bzo * Math.sin(hdgRad);
+      this._deckMesh.position.y = 0;
+      this._deckMesh.position.z = this.ownShip.position.z - bzo * Math.cos(hdgRad);
+      this._deckMesh.rotation.y = -hdgRad;
+    }
 
     // Bridge interior follows ship heading (not pitch/yaw); y = bridge eye height
     if (this._bridgeGroup) {
