@@ -386,7 +386,6 @@ class ShipNavigatorSimulator {
     this._setProgress(70, 'Building bridge interior…');
     await this._tick();
     this._createBridgeInterior(shipType);
-    this._createForedeck(shipType);
 
     this._setProgress(80, 'Initialising systems…');
     await this._tick();
@@ -978,6 +977,7 @@ class ShipNavigatorSimulator {
     document.getElementById('btn-fog')?.addEventListener('click',  () => this._toggleFog());
     document.getElementById('btn-rain')?.addEventListener('click', () => this._toggleRain());
     document.getElementById('btn-night')?.addEventListener('click',() => this._toggleNight());
+    document.getElementById('btn-proc-view')?.addEventListener('click', () => this._toggleProceduralBridgeOverlay());
 
     // Sound signals
     document.getElementById('btn-foghorn')?.addEventListener('click', () => this.audio.playFogHorn(1));
@@ -1282,6 +1282,14 @@ class ShipNavigatorSimulator {
       this._deckMesh.position.y = 0;
       this._deckMesh.position.z = this.ownShip.position.z - bzo * Math.cos(hdgRad);
       this._deckMesh.rotation.y = -hdgRad;
+    }
+
+    // Procedural bridge-front overlay reacts slightly with turn/helm to show motion cue
+    const procOverlay = document.getElementById('bridge-procedural-overlay');
+    if (procOverlay && !procOverlay.classList.contains('off')) {
+      const swayPx = THREE.MathUtils.clamp(this.ownShip.rudderAngle * 0.55, -18, 18);
+      const tiltDeg = THREE.MathUtils.clamp(-this.ownShip.rot * 0.08, -5, 5);
+      procOverlay.style.transform = `translateX(${swayPx}px) rotateZ(${tiltDeg}deg)`;
     }
 
     // Bridge interior follows ship heading (not pitch/yaw); y = bridge eye height
