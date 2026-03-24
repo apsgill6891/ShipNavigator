@@ -702,6 +702,12 @@ html, body {
   line-height: 1;
   white-space: nowrap;
 }
+.hud-val-small {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+}
 .hud-sep { width: 1px; height: 40px; background: var(--col-border); }
 
 /* ── Control Panel ──────────────────────────────────────────────────────────── */

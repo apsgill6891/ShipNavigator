@@ -3,11 +3,11 @@
 // Origin = channel centre of each location
 
 export const SHIP_TYPES = [
-  { id: 'cargo',     name: 'General Cargo Vessel',    loa: 140, beam: 22, draft: 8,  maxSpeed: 14, bridgeHeight: 16, color: 0x778899, turnRate: 3.2,  steeringLag: 12, engineLag: 50,  stopDistNM: 1.5,  bridgeZOffset: 0.22  },
-  { id: 'tanker',    name: 'VLCC Tanker',             loa: 320, beam: 58, draft: 20, maxSpeed: 15, bridgeHeight: 22, color: 0x556b7a, turnRate: 1.0,  steeringLag: 28, engineLag: 100, stopDistNM: 4.0,  bridgeZOffset: 0.35  },
-  { id: 'container', name: 'Container Ship (ULCV)',   loa: 400, beam: 62, draft: 16, maxSpeed: 22, bridgeHeight: 40, color: 0x4a6a8a, turnRate: 1.4,  steeringLag: 22, engineLag: 70,  stopDistNM: 5.0,  bridgeZOffset: 0.30  },
-  { id: 'lng',       name: 'LNG Carrier',             loa: 290, beam: 48, draft: 12, maxSpeed: 19, bridgeHeight: 28, color: 0x8a9aaa, turnRate: 1.6,  steeringLag: 20, engineLag: 80,  stopDistNM: 3.2,  bridgeZOffset: 0.28  },
-  { id: 'bulk',      name: 'Bulk Carrier (Capesize)', loa: 280, beam: 45, draft: 18, maxSpeed: 14, bridgeHeight: 20, color: 0x6a7a6a, turnRate: 1.5,  steeringLag: 24, engineLag: 85,  stopDistNM: 2.8,  bridgeZOffset: 0.25  },
+  { id: 'cargo',     name: 'General Cargo Vessel',    loa: 140, beam: 22, draft: 8,  maxSpeed: 14, bridgeHeight: 16, color: 0x778899, turnRate: 8.5,  steeringLag: 9,  engineLag: 50,  stopDistNM: 1.5,  bridgeZOffset: 0.22  },
+  { id: 'tanker',    name: 'VLCC Tanker',             loa: 320, beam: 58, draft: 20, maxSpeed: 15, bridgeHeight: 22, color: 0x556b7a, turnRate: 5.5,  steeringLag: 16, engineLag: 100, stopDistNM: 4.0,  bridgeZOffset: 0.35  },
+  { id: 'container', name: 'Container Ship (ULCV)',   loa: 400, beam: 62, draft: 16, maxSpeed: 22, bridgeHeight: 40, color: 0x4a6a8a, turnRate: 9.8,  steeringLag: 12, engineLag: 70,  stopDistNM: 5.0,  bridgeZOffset: 0.30  },
+  { id: 'lng',       name: 'LNG Carrier',             loa: 290, beam: 48, draft: 12, maxSpeed: 19, bridgeHeight: 28, color: 0x8a9aaa, turnRate: 7.0,  steeringLag: 12, engineLag: 80,  stopDistNM: 3.2,  bridgeZOffset: 0.28  },
+  { id: 'bulk',      name: 'Bulk Carrier (Capesize)', loa: 280, beam: 45, draft: 18, maxSpeed: 14, bridgeHeight: 20, color: 0x6a7a6a, turnRate: 6.8,  steeringLag: 14, engineLag: 85,  stopDistNM: 2.8,  bridgeZOffset: 0.25  },
   { id: 'ferry',     name: 'High-Speed Ferry',        loa: 80,  beam: 14, draft: 3,  maxSpeed: 28, bridgeHeight: 12, color: 0xffffff, turnRate: 9.0,  steeringLag: 3,  engineLag: 12,  stopDistNM: 0.35, bridgeZOffset: 0.05  },
   { id: 'naval',     name: 'Naval Frigate',           loa: 135, beam: 16, draft: 6,  maxSpeed: 30, bridgeHeight: 18, color: 0x888888, turnRate: 6.0,  steeringLag: 4,  engineLag: 8,   stopDistNM: 0.5,  bridgeZOffset: 0.02  },
   { id: 'tug',       name: 'Ocean Tug',               loa: 45,  beam: 12, draft: 5,  maxSpeed: 12, bridgeHeight: 8,  color: 0xff4400, turnRate: 14.0, steeringLag: 2,  engineLag: 5,   stopDistNM: 0.15, bridgeZOffset: -0.05 },

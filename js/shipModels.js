@@ -214,19 +214,50 @@ function buildContainer(loa, beam, draft, bh, hullHex, deckOnly = false) {
 
   // Stacked containers on deck (bow to mid-ship)
   const containerColors = [0x226644, 0xcc3300, 0x3355aa, 0xccaa00, 0x884422, 0x558833, 0x446688, 0xaa4433];
-  const rowsPerSlot = 7; // vertical stacks
-  const slotLen = 13;    // metres per slot (20ft container)
-  const cols = Math.floor((beam - 4) / 2.5);
 
-  for (let slot = 0; slot < 14; slot++) {
-    const sz = -loa * 0.4 + slot * slotLen;
-    if (sz > loa * 0.25) break; // don't place in superstructure area
-    for (let row = 0; row < rowsPerSlot; row++) {
-      for (let col = 0; col < cols; col++) {
-        const cx = -(cols - 1) * 1.25 + col * 2.5;
-        const cy = deckY + 1.3 + row * 2.6;
-        const hexIdx = (slot + row + col) % containerColors.length;
-        ss(g, 2.4, 2.5, slotLen - 0.3, cx, cy, sz, containerColors[hexIdx]);
+  if (deckOnly) {
+    // Bridge-facing layout: fuller top-deck coverage with central sight corridor,
+    // visually closer to a real "looking over container stacks" bridge view.
+    const slotLen = 12.2;
+    const cols = Math.floor((beam - 4) / 2.5);
+    const centerGapCols = 2; // leave central lane toward horizon/mast
+
+    for (let slot = 0; slot < 20; slot++) {
+      const sz = -loa * 0.44 + slot * slotLen;
+      if (sz > loa * 0.30) break;
+
+      // Higher near stacks with slight taper toward far end
+      const rowsPerSlot = slot < 6 ? 3 : slot < 13 ? 2 : 1;
+      for (let row = 0; row < rowsPerSlot; row++) {
+        for (let col = 0; col < cols; col++) {
+          const centerLeft = Math.floor(cols / 2) - Math.floor(centerGapCols / 2);
+          const centerRight = centerLeft + centerGapCols - 1;
+          if (col >= centerLeft && col <= centerRight) continue;
+          const cx = -(cols - 1) * 1.25 + col * 2.5;
+          const cy = deckY + 1.3 + row * 2.6;
+          const hexIdx = (slot + row + col) % containerColors.length;
+          ss(g, 2.4, 2.5, slotLen - 0.3, cx, cy, sz, containerColors[hexIdx]);
+        }
+      }
+    }
+
+    // Two elevated mid-fore stacks as in typical bridge-front reference photos
+    ss(g, beam * 0.22, 8.0, loa * 0.075, -beam * 0.19, deckY + 6.4, -loa * 0.14, 0x7b4a3a);
+    ss(g, beam * 0.22, 8.0, loa * 0.075,  beam * 0.19, deckY + 6.4, -loa * 0.14, 0x5f4b64);
+  } else {
+    const rowsPerSlot = 7; // vertical stacks
+    const slotLen = 13;    // metres per slot (20ft container)
+    const cols = Math.floor((beam - 4) / 2.5);
+    for (let slot = 0; slot < 14; slot++) {
+      const sz = -loa * 0.4 + slot * slotLen;
+      if (sz > loa * 0.25) break; // don't place in superstructure area
+      for (let row = 0; row < rowsPerSlot; row++) {
+        for (let col = 0; col < cols; col++) {
+          const cx = -(cols - 1) * 1.25 + col * 2.5;
+          const cy = deckY + 1.3 + row * 2.6;
+          const hexIdx = (slot + row + col) % containerColors.length;
+          ss(g, 2.4, 2.5, slotLen - 0.3, cx, cy, sz, containerColors[hexIdx]);
+        }
       }
     }
   }
