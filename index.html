@@ -112,8 +112,11 @@
 
   <!-- Window area: transparent panes + thin vertical dividers -->
   <div class="bf-window-area">
-    <div id="bridge-photo-overlay">
-      <img id="bridge-photo-img" alt="Custom own-ship foredeck reference">
+    <div id="bridge-procedural-overlay">
+      <div class="proc-deck-grid"></div>
+      <div class="proc-container-block port"></div>
+      <div class="proc-container-block stbd"></div>
+      <div class="proc-foremast"></div>
     </div>
   </div>
 
@@ -461,8 +464,7 @@
       <button class="set-btn" onclick="window.simulator?.audio?.toggle()" title="Mute/Unmute">MUTE</button>
       <button class="set-btn" onclick="document.getElementById('vhf-panel').classList.toggle('panel-collapsed')" title="Toggle VHF">VHF</button>
       <button class="set-btn" onclick="window.simulator?._toggleBinoculars()" title="Binoculars (Z)">BINO</button>
-      <button class="set-btn" id="btn-photo" title="Load your own bridge-front photo">PHOTO</button>
-      <input id="photo-input" type="file" accept="image/*" style="display:none">
+      <button class="set-btn" id="btn-proc-view" title="Toggle coded bridge-front overlay">FRONT</button>
     </div>
   </div>
 

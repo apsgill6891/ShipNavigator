@@ -310,7 +310,9 @@ class ShipNavigatorSimulator {
     this._binoculars = false;
     this._mouseSensitivity = 0.2;
     this._bridgeGroup = null;
-    this._bridgePhotoUrl = null;
+    this._wakeLine = null;
+    this._wakeTrail = [];
+    this._wakeSampleTimer = 0;
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -362,6 +364,7 @@ class ShipNavigatorSimulator {
     this._setProgress(30, 'Building ocean…');
     await this._tick();
     this._createWater();
+    this._createWakeEffect();
 
     this._setProgress(40, 'Building sky…');
     await this._tick();
@@ -453,6 +456,21 @@ class ShipNavigatorSimulator {
     });
     this.water.rotation.x = -Math.PI / 2;
     this.scene.add(this.water);
+  }
+
+  _createWakeEffect() {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xddeeff,
+      transparent: true,
+      opacity: 0.55,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this._wakeLine = new THREE.Line(geo, mat);
+    this._wakeLine.frustumCulled = false;
+    this.scene.add(this._wakeLine);
   }
 
   // ── Sky ─────────────────────────────────────────────────────────────────────
@@ -959,10 +977,7 @@ class ShipNavigatorSimulator {
     document.getElementById('btn-fog')?.addEventListener('click',  () => this._toggleFog());
     document.getElementById('btn-rain')?.addEventListener('click', () => this._toggleRain());
     document.getElementById('btn-night')?.addEventListener('click',() => this._toggleNight());
-    document.getElementById('btn-photo')?.addEventListener('click', () => {
-      document.getElementById('photo-input')?.click();
-    });
-    document.getElementById('photo-input')?.addEventListener('change', (e) => this._loadBridgePhoto(e));
+    document.getElementById('btn-proc-view')?.addEventListener('click', () => this._toggleProceduralBridgeOverlay());
 
     // Sound signals
     document.getElementById('btn-foghorn')?.addEventListener('click', () => this.audio.playFogHorn(1));
@@ -1051,20 +1066,51 @@ class ShipNavigatorSimulator {
     if (btn) btn.textContent = this._isNight ? 'DAY' : 'NIGHT';
   }
 
-  _loadBridgePhoto(event) {
-    const input = event?.target;
-    const file = input?.files?.[0];
-    if (!file) return;
+  _toggleProceduralBridgeOverlay() {
+    const overlay = document.getElementById('bridge-procedural-overlay');
+    if (!overlay) return;
+    overlay.classList.toggle('off');
+  }
 
-    const overlay = document.getElementById('bridge-photo-overlay');
-    const img = document.getElementById('bridge-photo-img');
-    if (!overlay || !img) return;
+  _updateWake(dt) {
+    if (!this._wakeLine || !this.ownShip) return;
 
-    if (this._bridgePhotoUrl) URL.revokeObjectURL(this._bridgePhotoUrl);
-    this._bridgePhotoUrl = URL.createObjectURL(file);
-    img.src = this._bridgePhotoUrl;
-    overlay.style.display = 'block';
-    input.value = '';
+    const speed = Math.abs(this.ownShip.speed);
+    const hdgRad = this.ownShip.heading * Math.PI / 180;
+    const offset = (0.5 - (this.ownShip.type.bridgeZOffset || 0)) * this.ownShip.type.loa;
+    const sternX = this.ownShip.position.x - Math.sin(hdgRad) * offset;
+    const sternZ = this.ownShip.position.z + Math.cos(hdgRad) * offset;
+
+    this._wakeSampleTimer += dt;
+    const sampleGap = THREE.MathUtils.lerp(0.08, 0.28, Math.min(1, speed / Math.max(this.ownShip.type.maxSpeed, 1)));
+
+    if (speed > 1.2 && this._wakeSampleTimer >= sampleGap) {
+      this._wakeSampleTimer = 0;
+      this._wakeTrail.push({
+        x: sternX,
+        z: sternZ,
+        age: 0,
+        strength: Math.min(1, speed / Math.max(this.ownShip.type.maxSpeed * 0.6, 1)),
+      });
+    }
+
+    const maxAge = 24;
+    const current = ShipNavigatorSimulator.currentVectorFromEnv(this.weather);
+    const positions = [];
+    for (const node of this._wakeTrail) {
+      node.age += dt;
+      if (node.age > maxAge) continue;
+      // Slight spread and drift to mimic turbulent wake
+      const spread = (1 + node.age * 0.5) * node.strength;
+      node.x += current.x * dt + (Math.random() - 0.5) * 0.05 * spread;
+      node.z += current.z * dt + (Math.random() - 0.5) * 0.05 * spread;
+      positions.push(node.x, 0.12, node.z);
+    }
+    this._wakeTrail = this._wakeTrail.filter(n => n.age <= maxAge);
+
+    this._wakeLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    this._wakeLine.geometry.computeBoundingSphere();
+    this._wakeLine.material.opacity = speed > 0.8 ? 0.65 : 0.25;
   }
 
   // ── Panel Toggle ─────────────────────────────────────────────────────────────
@@ -1244,6 +1290,14 @@ class ShipNavigatorSimulator {
       this._deckMesh.rotation.y = -hdgRad;
     }
 
+    // Procedural bridge-front overlay reacts slightly with turn/helm to show motion cue
+    const procOverlay = document.getElementById('bridge-procedural-overlay');
+    if (procOverlay && !procOverlay.classList.contains('off')) {
+      const swayPx = THREE.MathUtils.clamp(this.ownShip.rudderAngle * 0.55, -18, 18);
+      const tiltDeg = THREE.MathUtils.clamp(-this.ownShip.rot * 0.08, -5, 5);
+      procOverlay.style.transform = `translateX(${swayPx}px) rotateZ(${tiltDeg}deg)`;
+    }
+
     // Bridge interior follows ship heading (not pitch/yaw); y = bridge eye height
     if (this._bridgeGroup) {
       const hdgRad = this.ownShip.heading * Math.PI / 180;
@@ -1262,6 +1316,7 @@ class ShipNavigatorSimulator {
       const col = new THREE.Color(0x001e4e).lerp(new THREE.Color(0x003366), waveH / 6);
       this.water.material.uniforms['waterColor'].value = col;
     }
+    this._updateWake(dt);
 
     // Day/night cycle
     this.simTime += dt * this.simTimeSpeed;
