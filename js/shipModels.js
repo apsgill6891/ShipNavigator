@@ -216,18 +216,18 @@ function buildContainer(loa, beam, draft, bh, hullHex, deckOnly = false) {
   const containerColors = [0x226644, 0xcc3300, 0x3355aa, 0xccaa00, 0x884422, 0x558833, 0x446688, 0xaa4433];
 
   if (deckOnly) {
-    // Bridge-facing layout: fuller top-deck coverage with central sight corridor,
-    // visually closer to a real "looking over container stacks" bridge view.
+    // Bridge-facing layout tuned to match a realistic container-ship bridge view:
+    // camera sits above stacks, seeing container tops and a clear centre corridor.
     const slotLen = 12.2;
     const cols = Math.floor((beam - 4) / 2.5);
-    const centerGapCols = 2; // leave central lane toward horizon/mast
+    const centerGapCols = 3; // wider sight lane from bridge toward bow
 
     for (let slot = 0; slot < 20; slot++) {
       const sz = -loa * 0.44 + slot * slotLen;
-      if (sz > loa * 0.30) break;
+      if (sz > loa * 0.24) break;
 
-      // Higher near stacks with slight taper toward far end
-      const rowsPerSlot = slot < 6 ? 3 : slot < 13 ? 2 : 1;
+      // Keep stacks below bridge-eye level and taper toward bow.
+      const rowsPerSlot = slot < 4 ? 2 : slot < 11 ? 1 : 0;
       for (let row = 0; row < rowsPerSlot; row++) {
         for (let col = 0; col < cols; col++) {
           const centerLeft = Math.floor(cols / 2) - Math.floor(centerGapCols / 2);
@@ -241,9 +241,9 @@ function buildContainer(loa, beam, draft, bh, hullHex, deckOnly = false) {
       }
     }
 
-    // Two elevated mid-fore stacks as in typical bridge-front reference photos
-    ss(g, beam * 0.22, 8.0, loa * 0.075, -beam * 0.19, deckY + 6.4, -loa * 0.14, 0x7b4a3a);
-    ss(g, beam * 0.22, 8.0, loa * 0.075,  beam * 0.19, deckY + 6.4, -loa * 0.14, 0x5f4b64);
+    // Lower paired centre-forward blocks visible below the bridge horizon.
+    ss(g, beam * 0.22, 4.8, loa * 0.07, -beam * 0.19, deckY + 3.8, -loa * 0.16, 0x7b4a3a);
+    ss(g, beam * 0.22, 4.8, loa * 0.07,  beam * 0.19, deckY + 3.8, -loa * 0.16, 0x5f4b64);
   } else {
     const rowsPerSlot = 7; // vertical stacks
     const slotLen = 13;    // metres per slot (20ft container)

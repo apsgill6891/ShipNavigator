@@ -310,6 +310,7 @@ class ShipNavigatorSimulator {
     this._binoculars = false;
     this._mouseSensitivity = 0.2;
     this._bridgeGroup = null;
+    this._bridgeViewProfile = null;
     this._wakeLine = null;
     this._wakeTrail = [];
     this._wakeSampleTimer = 0;
@@ -345,8 +346,14 @@ class ShipNavigatorSimulator {
 
     // Own ship
     const shipType = SHIP_TYPES.find(t => t.id === shipTypeId) || SHIP_TYPES[0];
+    const stdContainerType = SHIP_TYPES.find(t => t.id === 'container') || shipType;
+    this._bridgeViewProfile = {
+      eyeHeight: stdContainerType.bridgeHeight,
+      deckOffset: stdContainerType.bridgeZOffset,
+      deckLoa: stdContainerType.loa,
+    };
     this.ownShip = new OwnShip(shipTypeId);
-    this.ownShip.position.set(loc.startPos.x, shipType.bridgeHeight, loc.startPos.z);
+    this.ownShip.position.set(loc.startPos.x, this._bridgeViewProfile.eyeHeight, loc.startPos.z);
     this.ownShip.heading = loc.startHeading;
     this.ownShip.setEngineOrder('STOP');
     // Start at slow ahead after 3s
@@ -359,7 +366,7 @@ class ShipNavigatorSimulator {
     this.camera.position.copy(this.ownShip.position);
     this._yaw = loc.startHeading;
     this._lastHeading = loc.startHeading;
-    this._pitch = -10; // look slightly down to see the foredeck ahead
+    this._pitch = -6; // bridge-eye look-down for container stacks below
 
     this._setProgress(30, 'Building ocean…');
     await this._tick();
@@ -386,6 +393,7 @@ class ShipNavigatorSimulator {
     this._setProgress(70, 'Building bridge interior…');
     await this._tick();
     this._createBridgeInterior(shipType);
+    this._createForedeck(shipType);
 
     this._setProgress(80, 'Initialising systems…');
     await this._tick();
@@ -861,7 +869,9 @@ class ShipNavigatorSimulator {
   }
 
   _createForedeck(shipType) {
-    const group = buildForedeckMesh(shipType.id);
+    // Use a standard container foredeck silhouette for bridge-view framing,
+    // regardless of selected vessel type.
+    const group = buildForedeckMesh('container');
     this._deckMesh = group;
     this.scene.add(group);
   }
@@ -1243,6 +1253,9 @@ class ShipNavigatorSimulator {
 
     // Update own ship
     this.ownShip.update(dt, this.weather);
+    if (this._bridgeViewProfile) {
+      this.ownShip.position.y = this._bridgeViewProfile.eyeHeight;
+    }
 
     // Camera yaw tracks ship heading (bridge rotates with ship)
     const hdgDelta = this.ownShip.heading - this._lastHeading;
@@ -1277,7 +1290,7 @@ class ShipNavigatorSimulator {
     // Foredeck / own-ship front view follows vessel motion and heading
     if (this._deckMesh) {
       const hdgRad = this.ownShip.heading * Math.PI / 180;
-      const bzo = (this.ownShip.type.bridgeZOffset || 0) * this.ownShip.type.loa;
+      const bzo = (this._bridgeViewProfile.deckOffset || 0) * this._bridgeViewProfile.deckLoa;
       this._deckMesh.position.x = this.ownShip.position.x + bzo * Math.sin(hdgRad);
       this._deckMesh.position.y = 0;
       this._deckMesh.position.z = this.ownShip.position.z - bzo * Math.cos(hdgRad);
