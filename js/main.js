@@ -386,6 +386,7 @@ class ShipNavigatorSimulator {
     this._setProgress(70, 'Building bridge interior…');
     await this._tick();
     this._createBridgeInterior(shipType);
+    this._createForedeck(shipType);
 
     this._setProgress(80, 'Initialising systems…');
     await this._tick();
@@ -861,7 +862,9 @@ class ShipNavigatorSimulator {
   }
 
   _createForedeck(shipType) {
-    const group = buildForedeckMesh(shipType.id);
+    // Use a standard container foredeck silhouette for bridge-view framing,
+    // regardless of selected vessel type.
+    const group = buildForedeckMesh('container');
     this._deckMesh = group;
     this.scene.add(group);
   }
