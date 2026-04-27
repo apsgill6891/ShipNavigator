@@ -1,0 +1,17 @@
+{
+  "name": "shipnavigator",
+  "version": "1.0.0",
+  "description": "Ship Navigator Simulator - Android wrapper",
+  "private": true,
+  "scripts": {
+    "serve": "node serve.mjs",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "type": "module"
+}

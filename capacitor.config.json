@@ -1,0 +1,11 @@
+{
+  "appId": "com.shipnavigator.simulator",
+  "appName": "Ship Navigator",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
